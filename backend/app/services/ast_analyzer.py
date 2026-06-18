@@ -54,12 +54,11 @@ def analyze_ast(code_string: str) -> dict:
 
     detected_patterns = []
 
-    # TODO: implement each detection rule as its own helper function, e.g.:
-    # detected_patterns += _detect_nested_loop(tree)
-    # detected_patterns += _detect_string_concat_in_loop(tree)
-    # detected_patterns += _detect_range_len_pattern(tree)
-    # detected_patterns += _detect_repeated_func_call_in_loop(tree)
-    # detected_patterns += _detect_global_var_access_in_loop(tree)
+    detected_patterns += _detect_nested_loop(tree)
+    detected_patterns += _detect_string_concat_in_loop(tree)
+    detected_patterns += _detect_range_len_pattern(tree)
+    detected_patterns += _detect_repeated_func_call_in_loop(tree)
+    detected_patterns += _detect_global_var_access_in_loop(tree)
 
     return {"patterns": detected_patterns}
 
