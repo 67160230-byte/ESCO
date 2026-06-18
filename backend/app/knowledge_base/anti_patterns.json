@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0",
+  "reference": {
+    "source": "Pereira et al. (2017), ACM SIGPLAN - Energy Efficiency across Programming Languages",
+    "note": "complexity_multiplier values are relative scaling factors derived from the relative energy ranking in the cited study. They are used as C_factor in E = (P_ref x C_factor) x t_ref. These are NOT absolute hardware measurements."
+  },
+  "patterns": [
+    {
+      "id": "nested_loop",
+      "name": "Nested Loop",
+      "name_th": "การวนซ้ำซ้อนกัน (Nested Loop)",
+      "complexity_class": "O(n^2)",
+      "severity": "High",
+      "complexity_multiplier": 4.0,
+      "weight_structural": 30,
+      "description_en": "Two or more nested 'for' loops iterating over the same or related data, causing quadratic growth in operations as input size increases.",
+      "description_th": "การใช้ loop ซ้อนกันตั้งแต่สองชั้นขึ้นไปในการวนข้อมูล ทำให้จำนวนการประมวลผลเพิ่มขึ้นแบบ O(n^2) เมื่อขนาดข้อมูลเพิ่มขึ้น",
+      "why_it_costs_energy_th": "จำนวนการดำเนินการเพิ่มขึ้นแบบยกกำลังสองเทียบกับขนาด input ทำให้ CPU ต้องทำงานหนักขึ้นมากเมื่อ n มีขนาดใหญ่ ส่งผลให้ใช้พลังงานมากกว่ารูปแบบที่มี complexity ต่ำกว่าอย่างมีนัยสำคัญ",
+      "ast_detection": {
+        "node_type": "For",
+        "rule": "ast.For node whose body contains another ast.For node (nested at least one level)"
+      },
+      "example": {
+        "before": "result = []\nfor i in range(len(data_a)):\n    for j in range(len(data_b)):\n        if data_a[i] == data_b[j]:\n            result.append(data_a[i])",
+        "after": "result = list(set(data_a) & set(data_b))",
+        "explanation_th": "การเปลี่ยนจาก Nested Loop ที่เปรียบเทียบสมาชิกทีละคู่ไปเป็นการใช้ set intersection ลด complexity จาก O(n^2) เป็น O(n) เนื่องจาก set ใน Python ใช้ hash table ในการค้นหาสมาชิกด้วย time complexity O(1) โดยเฉลี่ย ทำให้จำนวนการดำเนินการทั้งหมดลดลงอย่างมีนัยสำคัญเมื่อขนาดข้อมูลเพิ่มขึ้น"
+      }
+    },
+    {
+      "id": "string_concat_loop",
+      "name": "String Concatenation in Loop",
+      "name_th": "การต่อสตริงซ้ำภายใน Loop",
+      "complexity_class": "O(n^2)",
+      "severity": "Medium",
+      "complexity_multiplier": 2.5,
+      "weight_structural": 20,
+      "description_en": "Using the '+' or '+=' operator to build a string inside a loop, which creates and destroys a new string object on every iteration since Python strings are immutable.",
+      "description_th": "การใช้ตัวดำเนินการ '+' หรือ '+=' เพื่อต่อ string ภายใน loop ซึ่งสร้างและทำลาย string object ใหม่ทุกครั้งที่ loop ทำงาน เนื่องจาก string ใน Python เป็น immutable",
+      "why_it_costs_energy_th": "ทุกครั้งที่ต่อ string ใหม่ Python ต้องจัดสรร memory ใหม่และคัดลอกข้อมูลเดิมทั้งหมดไปยัง object ใหม่ เมื่อทำซ้ำหลายครั้งภายใน loop จะเกิดการสร้างและทำลาย object จำนวนมาก ทำให้ใช้ CPU และ memory bandwidth มากกว่าที่จำเป็น",
+      "ast_detection": {
+        "node_type": "AugAssign / BinOp",
+        "rule": "ast.AugAssign with op=ast.Add where target is a string variable, found inside an ast.For or ast.While body; or ast.BinOp with op=ast.Add chained on string type inside loop"
+      },
+      "example": {
+        "before": "report = \"\"\nfor row in data:\n    report += str(row) + \"\\n\"",
+        "after": "parts = []\nfor row in data:\n    parts.append(str(row))\nreport = \"\\n\".join(parts)",
+        "explanation_th": "การเปลี่ยนจากการต่อ string ด้วย += ภายใน loop ไปเป็นการสะสมค่าไว้ใน list แล้วใช้ ''.join() ครั้งเดียวหลัง loop ช่วยลดการสร้างและทำลาย string object ซ้ำหลายรอบ เนื่องจาก join() จัดสรร memory เพียงครั้งเดียวสำหรับผลลัพธ์สุดท้าย"
+      }
+    },
+    {
+      "id": "range_len_pattern",
+      "name": "range(len()) Pattern",
+      "name_th": "การวนลูปด้วย range(len())",
+      "complexity_class": "O(n)",
+      "severity": "Low",
+      "complexity_multiplier": 1.3,
+      "weight_structural": 10,
+      "description_en": "Using 'for i in range(len(sequence))' followed by indexing 'sequence[i]' instead of iterating directly over the sequence, adding unnecessary overhead from repeated index lookups.",
+      "description_th": "การใช้ for i in range(len(sequence)) แล้วเข้าถึงข้อมูลด้วย sequence[i] แทนการวนซ้ำตรง ๆ บน sequence ซึ่งเพิ่ม overhead จากการคำนวณ index และเข้าถึงข้อมูลซ้ำซ้อนทุกรอบ",
+      "why_it_costs_energy_th": "แต่ละรอบของ loop ต้องคำนวณ index และเรียก __getitem__ เพิ่มเติมจากที่จำเป็น เมื่อเทียบกับการวนซ้ำตรงบน object ที่ interpreter จัดการให้อย่างมีประสิทธิภาพอยู่แล้ว ทำให้มี CPU cycle ส่วนเกินสะสมตามจำนวนรอบ",
+      "ast_detection": {
+        "node_type": "For",
+        "rule": "ast.For with iter being a Call to range() whose argument is a Call to len(), where the For target (e.g. 'i') is subsequently used only for indexing within the loop body"
+      },
+      "example": {
+        "before": "total = 0\nfor i in range(len(values)):\n    total += values[i]",
+        "after": "total = 0\nfor value in values:\n    total += value",
+        "explanation_th": "การวนซ้ำตรงบน sequence แทนการใช้ range(len()) ตัดขั้นตอนการคำนวณ index และการเรียก __getitem__ ที่ไม่จำเป็นออกไป ทำให้ interpreter จัดการ iteration ได้อย่างมีประสิทธิภาพมากขึ้นโดยพฤติกรรมของโค้ดยังคงเหมือนเดิม"
+      }
+    },
+    {
+      "id": "repeated_func_call_loop",
+      "name": "Repeated Function Call in Loop",
+      "name_th": "การเรียกฟังก์ชันซ้ำภายใน Loop โดยไม่จำเป็น",
+      "complexity_class": "O(n) with constant overhead multiplier",
+      "severity": "Medium",
+      "complexity_multiplier": 2.0,
+      "weight_structural": 20,
+      "description_en": "Calling a function with the same arguments (or a function whose result does not change across iterations) repeatedly inside a loop, instead of calling it once and reusing the result.",
+      "description_th": "การเรียกฟังก์ชันที่ผลลัพธ์ไม่เปลี่ยนแปลงระหว่างรอบของ loop ซ้ำทุกครั้งที่ loop ทำงาน ทั้งที่สามารถเรียกครั้งเดียวแล้วเก็บผลลัพธ์ไว้ใช้ซ้ำได้",
+      "why_it_costs_energy_th": "การเรียกฟังก์ชันมี overhead จากการสร้าง stack frame ใหม่ทุกครั้ง หากผลลัพธ์ไม่เปลี่ยนแปลงระหว่างรอบของ loop การเรียกซ้ำเป็นการประมวลผลที่สูญเปล่าโดยสิ้นเชิงและสะสมเป็นการใช้พลังงานส่วนเกินตามจำนวนรอบ",
+      "ast_detection": {
+        "node_type": "Call",
+        "rule": "ast.Call node found inside an ast.For or ast.While body where the call's arguments are all loop-invariant (constants or variables not reassigned within the loop body), excluding calls to the loop's own iteration target"
+      },
+      "example": {
+        "before": "results = []\nfor item in items:\n    config = load_config()\n    results.append(process(item, config))",
+        "after": "config = load_config()\nresults = []\nfor item in items:\n    results.append(process(item, config))",
+        "explanation_th": "การย้าย load_config() ออกมานอก loop เพราะค่าที่ได้ไม่เปลี่ยนแปลงในแต่ละรอบ ทำให้เรียกฟังก์ชันเพียงครั้งเดียวแทนการเรียกซ้ำตามจำนวนรอบของ loop ลด overhead จากการสร้าง stack frame ที่ไม่จำเป็น"
+      }
+    },
+    {
+      "id": "global_var_access_loop",
+      "name": "Global Variable Access in Loop",
+      "name_th": "การเข้าถึงตัวแปร Global ซ้ำภายใน Loop",
+      "complexity_class": "O(n) with constant overhead multiplier",
+      "severity": "Low",
+      "complexity_multiplier": 1.2,
+      "weight_structural": 10,
+      "description_en": "Reading or writing a global variable repeatedly inside a loop body, which is slower than accessing a local variable due to Python's scope lookup mechanism (LOAD_GLOBAL vs LOAD_FAST).",
+      "description_th": "การอ่านหรือเขียนตัวแปร global ซ้ำภายใน loop ซึ่งช้ากว่าการเข้าถึงตัวแปร local เนื่องจากกลไกการค้นหาตัวแปรของ Python ต้องค้นหาใน global namespace ทุกครั้ง",
+      "why_it_costs_energy_th": "การเข้าถึงตัวแปร global ใช้ bytecode LOAD_GLOBAL ซึ่งต้องค้นหาผ่าน dictionary ของ global namespace ในขณะที่ตัวแปร local ใช้ LOAD_FAST ที่เข้าถึงผ่าน array index โดยตรง เมื่อเข้าถึงซ้ำหลายพันหรือหลายล้านครั้งภายใน loop ความต่างนี้สะสมเป็นการใช้ CPU cycle ส่วนเกิน",
+      "ast_detection": {
+        "node_type": "Name",
+        "rule": "ast.Name node referencing an identifier declared in the global scope (module-level), accessed inside an ast.For or ast.While body without being passed as a local parameter or assigned locally first"
+      },
+      "example": {
+        "before": "THRESHOLD = 100\n\ndef filter_data(data):\n    result = []\n    for value in data:\n        if value > THRESHOLD:\n            result.append(value)\n    return result",
+        "after": "THRESHOLD = 100\n\ndef filter_data(data, threshold=THRESHOLD):\n    result = []\n    for value in data:\n        if value > threshold:\n            result.append(value)\n    return result",
+        "explanation_th": "การส่ง THRESHOLD เข้ามาเป็น local parameter ของฟังก์ชันแทนการเข้าถึงตัวแปร global โดยตรงภายใน loop ทำให้ interpreter ใช้ LOAD_FAST ที่เร็วกว่า LOAD_GLOBAL ในการเข้าถึงค่าทุกรอบของการวนซ้ำ"
+      }
+    }
+  ]
+}

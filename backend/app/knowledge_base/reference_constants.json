@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "energy_model": {
+    "formula": "E = (P_ref * C_factor) * t_ref",
+    "P_ref_watts": 65.0,
+    "P_ref_note": "Reference CPU power draw in watts, representative of a typical desktop/server-grade CPU under load. Used as a fixed baseline across all calculations for relative comparison purposes.",
+    "t_ref_base_seconds": 0.000001,
+    "t_ref_note": "Reference execution time per unit of input (n) before applying complexity scaling. Final t_ref = t_ref_base_seconds * n^(complexity_exponent implied by detected pattern).",
+    "baseline_multiplier": 1.0,
+    "baseline_note": "C_factor used for code with zero detected anti-patterns, representing the energy-efficient baseline for the same function size."
+  },
+  "carbon_model": {
+    "formula": "CO2 = E_kWh * EF",
+    "emission_factor_kgco2_per_kwh": 0.4999,
+    "emission_factor_unit": "kgCO2/kWh",
+    "emission_factor_source": "Department of Alternative Energy Development and Efficiency (DEDE), Thailand / Thailand Greenhouse Gas Management Organization (TGO)",
+    "emission_factor_note": "Public reference value representing Thailand's national grid electricity emission factor. Used to convert estimated energy consumption into estimated CO2 equivalent.",
+    "output_unit_per_run": "gCO2",
+    "output_unit_per_year": "gCO2/year"
+  },
+  "eco_score_model": {
+    "components": {
+      "structural_score_weight": 0.5,
+      "energy_score_weight": 0.5
+    },
+    "structural_score": {
+      "max_points": 100,
+      "deduction_rule": "Deduct points per detected pattern using the pattern's weight_structural value from anti_patterns.json, capped at 0 minimum."
+    },
+    "energy_score": {
+      "max_points": 100,
+      "calculation": "Compare estimated energy (kWh/year) against baseline energy (kWh/year, baseline_multiplier=1.0) for the same n and runs_per_day. energy_score = max(0, 100 - ((E_actual - E_baseline) / E_baseline) * 100), capped at 0 minimum and 100 maximum."
+    },
+    "grade_thresholds": [
+      { "grade": "A", "min_score": 90 },
+      { "grade": "B", "min_score": 75 },
+      { "grade": "C", "min_score": 60 },
+      { "grade": "D", "min_score": 40 },
+      { "grade": "F", "min_score": 0 }
+    ]
+  }
+}
