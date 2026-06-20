@@ -1,9 +1,7 @@
 // Centralized API client. All 4 pages read from one shared analysis result,
 // so we only ever call POST /analyze once per user submission.
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://esco-backend-h4v2.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export async function analyzeCode(code, n, runsPerDay) {
   const response = await fetch(`${API_BASE_URL}/analyze`, {
